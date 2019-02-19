@@ -1,0 +1,485 @@
+﻿// ------------------------------------- //
+// ------- ГЛОБАЛЬНІ ЗМІННІ ------------ //
+// ------------------------------------- //
+
+// обєкти сцени
+var renderer, scene, camera, pointLight, spotLight;
+
+// ігрове поле
+var fieldWidth = 450, fieldHeight = 210;
+
+// дощечки
+var paddleWidth, paddleHeight, paddleDepth, paddleQuality;
+var paddle1DirY = 0, paddle2DirY = 0, paddleSpeed = 3.5;
+
+// мяч
+var ball, paddle1, paddle2;
+var ballDirX = 1, ballDirY = 1, ballSpeed = 2.5;
+
+// важкість (0 - легше, 1 - важче)
+var difficulty = 0.2;
+
+var score1 = 0, score2 = 0;
+var maxScore = 7;
+
+
+// ------------------------------------- //
+// -------------- ФУНКЦІЇ -------------- //
+// ------------------------------------- //
+function setup()
+{
+	
+	document.getElementById("winnerBoard").innerHTML = "Виграє той, хто першим набере " + maxScore + " очків!";
+	
+	
+	score1 = 0;
+	score2 = 0;
+	
+	// всі обєкти на сцену
+	createScene()
+	
+	// фізика
+	draw();
+}
+
+function createScene()
+{
+	// розмір сцени
+	var WIDTH = 900,
+	  HEIGHT = 400;
+
+	// камера
+	var VIEW_ANGLE = 50,
+	  ASPECT = WIDTH / HEIGHT,
+	  NEAR = 0.1,
+	  FAR = 10000;
+
+	var c = document.getElementById("gameCanvas");
+
+	// рендер, камера, сцена
+	renderer = new THREE.WebGLRenderer();
+	camera =
+	  new THREE.PerspectiveCamera(
+		VIEW_ANGLE,
+		ASPECT,
+		NEAR,
+		FAR);
+
+	scene = new THREE.Scene();
+
+	// камеру на сцену
+	scene.add(camera);
+	
+	// позициія камери
+	camera.position.set(0, -200, 300);
+	camera.lookAt(scene.position);
+	
+	// старт рендеринг
+	renderer.setSize(WIDTH, HEIGHT);
+
+	c.appendChild(renderer.domElement);
+
+	// ігрове поле 
+	var planeWidth = fieldWidth,
+		planeHeight = fieldHeight,
+		planeQuality = 10;
+		
+	// матеріал дошки1
+	var paddle1Material =
+	  new THREE.MeshLambertMaterial(
+		{
+		  color: 0x1B32C0
+		});
+		
+	// матеріал дошки2
+	var paddle2Material =
+	  new THREE.MeshLambertMaterial(
+		{
+		  color: 0xFF4045
+		});
+		
+	// матеріал поля	
+	var planeMaterial =
+	  new THREE.MeshLambertMaterial(
+		{
+		  color: 0x4BD121
+		});
+		
+	// матеріал столу
+	var tableMaterial =
+	  new THREE.MeshLambertMaterial(
+		{
+		  color: 0x111111
+		});
+			
+	// створюємо ігровий план
+	var plane = new THREE.Mesh(
+
+	  new THREE.PlaneGeometry(
+		planeWidth * 0.95,	// 95% шоб бачили коли мяч вийде за поле
+		planeHeight,
+		planeQuality,
+		planeQuality),
+
+	  planeMaterial);
+	  
+	scene.add(plane);
+	
+	// створює стіл
+	var table = new THREE.Mesh(
+
+	  new THREE.CubeGeometry(
+		planeWidth * 1.05,	// створює стіл з прокладкою
+		planeHeight * 1.06,
+		100,				// глубина
+		planeQuality,
+		planeQuality,
+		1),
+
+	  tableMaterial);
+	table.position.z = -51;		
+	scene.add(table);
+		
+	// мяч
+	// нищі значення повишають производительность
+	var radius = 5,
+		segments = 6,
+		rings = 6;
+		
+	// матеріал сфери
+	var sphereMaterial =
+	  new THREE.MeshLambertMaterial(
+		{
+		  color: 0xD43001
+		});
+		
+	// створюємо мяч з геометрією сфери
+	ball = new THREE.Mesh(
+
+	  new THREE.SphereGeometry(
+		radius,
+		segments,
+		rings),
+
+	  sphereMaterial);
+
+	// додаємо мяч на сцену
+	scene.add(ball);
+	
+	ball.position.x = 0;
+	ball.position.y = 0;
+	// ставимо на стіл
+	ball.position.z = radius;
+	
+	// дощечки
+	paddleWidth = 10;
+	paddleHeight = 30;
+	paddleDepth = 10;
+	paddleQuality = 1;
+	
+	// дощечка1	
+	paddle1 = new THREE.Mesh(
+
+	  new THREE.CubeGeometry(
+		paddleWidth,
+		paddleHeight,
+		paddleDepth,
+		paddleQuality,
+		paddleQuality,
+		paddleQuality),
+
+	  paddle1Material);
+
+	// додаємо дощечку1 на сцену
+	scene.add(paddle1);
+	
+	// дощечка2
+	paddle2 = new THREE.Mesh(
+
+	  new THREE.CubeGeometry(
+		paddleWidth,
+		paddleHeight,
+		paddleDepth,
+		paddleQuality,
+		paddleQuality,
+		paddleQuality),
+
+	  paddle2Material);
+	  
+	// додаємо дощечку2 на сцену
+	scene.add(paddle2);
+	
+	// ставимо дощечки на кожній стороні стола посередині
+	paddle1.position.x = -fieldWidth/2 + paddleWidth;
+	paddle2.position.x = fieldWidth/2 - paddleWidth;
+	
+	// та над столом
+	paddle1.position.z = paddleDepth;
+	paddle2.position.z = paddleDepth;
+		
+	// создаемо точкове світло
+	pointLight =
+	  new THREE.PointLight(0xF8D898);
+
+	// задаємо йому позицію
+	pointLight.position.x = -1000;
+	pointLight.position.y = 0;
+	pointLight.position.z = 1000;
+	pointLight.intensity = 2.9;
+	pointLight.distance = 10000;
+	// і додаємо на сцену
+	scene.add(pointLight);
+}
+
+function draw()
+{	
+	// малюємо THREE.JS сцену
+	renderer.render(scene, camera);
+	// запусксємо draw на кожному кадрі
+	requestAnimationFrame(draw);
+	
+	ballPhysics();
+	paddlePhysics();
+	playerPaddleMovement();
+	opponentPaddleMovement();
+}
+
+function ballPhysics()
+{
+	// якщо мяч рухається з лівої сторони(Сторона ігрока)
+	if (ball.position.x <= -fieldWidth/2)
+	{	
+		score2++;
+		document.getElementById("scores").innerHTML = score1 + "-" + score2;
+		resetBall(2);
+		matchScoreCheck();
+	}
+	
+	// якщо мяч рухається з правої сторони (Сторона компютера)
+	if (ball.position.x >= fieldWidth/2)
+	{		
+		
+		score1++;
+		document.getElementById("scores").innerHTML = score1 + "-" + score2;
+		resetBall(1);
+		matchScoreCheck();	
+	}
+	
+	// якшо шар відбивається від верхньої сторони столу
+	if (ball.position.y <= -fieldHeight/2)
+	{
+		ballDirY = -ballDirY;
+	}	
+	// якшо шар відбивається від нижньої сторони столу
+	if (ball.position.y >= fieldHeight/2)
+	{
+		ballDirY = -ballDirY;
+	}
+	
+	// обновляємо позицію мяча весь час
+	ball.position.x += ballDirX * ballSpeed;
+	ball.position.y += ballDirY * ballSpeed;
+	
+	// ограничимо швидкість мяча до 2х
+	// тому не ускоряється сверхшвидко
+	// робимо іграбельно для людей
+	if (ballDirY > ballSpeed * 2)
+	{
+		ballDirY = ballSpeed * 2;
+	}
+	else if (ballDirY < -ballSpeed * 2)
+	{
+		ballDirY = -ballSpeed * 2;
+	}
+}
+
+// Логіка компютерного опонента
+function opponentPaddleMovement()
+{
+	// приміняємо функцію до мяча по Y
+	paddle2DirY = (ball.position.y - paddle2.position.y) * difficulty;
+	
+	// якщо функція поверне значення, яке більше швидкості руху дошки, ми ограничимо його
+	if (Math.abs(paddle2DirY) <= paddleSpeed)
+	{	
+		paddle2.position.y += paddle2DirY;
+	}
+	// якщо значення функції занадто велике, ми ограничимо його
+	else
+	{
+		// якщо дощечка рухається в позитивному наплямку
+		if (paddle2DirY > paddleSpeed)
+		{
+			paddle2.position.y += paddleSpeed;
+		}
+		// якщо дощечка руха\ться в негативному наплямку
+		else if (paddle2DirY < -paddleSpeed)
+		{
+			paddle2.position.y -= paddleSpeed;
+		}
+	}
+	paddle2.scale.y += (1 - paddle2.scale.y) * 0.2;	
+}
+
+
+// управління дощечками з клавіатури
+function playerPaddleMovement()
+{
+	// рух вліво
+	if (Key.isDown(Key.A))		
+	{
+		// якшо дощечка не прикасається до краю стола
+		// ми рухаємо
+		if (paddle1.position.y < fieldHeight * 0.41)
+		{
+			paddle1DirY = paddleSpeed * 0.5;
+		}
+		// інакше не переміщуємо дощечку
+		// чтобы показать что дальше двигаться нельзя
+		else
+		{
+			paddle1DirY = 0;
+			paddle1.scale.z += (10 - paddle1.scale.z) * 0.2;
+			
+		}
+	}	
+	// рух вправо
+	else if (Key.isDown(Key.D))
+	{
+		// якшо дощечка не прикасається до краю стола
+		// ми рухаємо
+		if (paddle1.position.y > -fieldHeight * 0.43)
+		{
+			paddle1DirY = -paddleSpeed * 0.5;
+		}
+		// інакше не переміщуємо дощечку
+		// чтобы показать что дальше двигаться нельзя
+		else
+		{
+			paddle1DirY = 0;
+			paddle1.scale.z += (10 - paddle1.scale.z) * 0.2;
+		}
+	}
+	// інакше не рухаємо дощечку
+	else
+	{
+		// зупиняємо дощечку
+		paddle1DirY = 0;
+	}
+	paddle1.scale.y += (1 - paddle1.scale.y) * 0.2;	
+	paddle1.scale.z += (1 - paddle1.scale.z) * 0.2;	
+	paddle1.position.y += paddle1DirY;
+}
+
+// Логіка зіткнень дощечок
+function paddlePhysics()
+{
+	 // ЛЛОГІКА ДОЩЕЧКИ ІГРОКА
+ 
+    // якщо мяч має однакові координати з дощечкою1 на Х
+    // запамятовуємо координати ЦЕНТРУ обєкта
+    // ми робимо перевірку тільки між передньої та середньою частинами дощечки (зіткнення одностороннє)
+	if (ball.position.x <= paddle1.position.x + paddleWidth
+	&&  ball.position.x >= paddle1.position.x)
+	{
+		// і якщо мяч має однакові координати з дощечкою1 на У
+		if (ball.position.y <= paddle1.position.y + paddleHeight/2
+		&&  ball.position.y >= paddle1.position.y - paddleHeight/2)
+		{
+			// і якщо мяч направляється до ігрока(негативне направлення)
+			if (ballDirX < 0)
+			{
+				paddle1.scale.y = 15;
+				// змінюємо направлення руху мяча, щоб створити ефект відбиття
+				ballDirX = -ballDirX;
+				 // змінюємо кут мяча при відбитті
+                 // це не реалістична фізика, просто щоб було цікавіше
+                 // дозволяє скользити по мячу, щоб перемогти суперника
+				ballDirY -= paddle1DirY * 0.7;
+			}
+		}
+	}
+	
+	 // ЛОГІКА ДОЩЕЧКИ СУПЕРНИКА	
+	
+	// якщо мяч має однакові координати з дощечкою2 на Х
+    // запамятовуємо координати ЦЕНТРУ обєкта
+    // ми робимо перевірку тільки між передньої та середньою частинами дощечки (зіткнення одностороннє)
+	if (ball.position.x <= paddle2.position.x + paddleWidth
+	&&  ball.position.x >= paddle2.position.x)
+	{
+		// і якщо мяч має однакові координати з дощечкою2 на У
+		if (ball.position.y <= paddle2.position.y + paddleHeight/2
+		&&  ball.position.y >= paddle2.position.y - paddleHeight/2)
+		{
+			// і якщо мяч направляється до суперника(позитивне направлення)
+			if (ballDirX > 0)
+			{	
+				paddle2.scale.y = 15;
+				// змінюємо направлення руху мяча, щоб створити ефект відбиття
+				ballDirX = -ballDirX;
+				// змінюємо кут мяча при відбитті
+                 // це не реалістична фізика, просто щоб було цікавіше
+                 // дозволяє скользити по мячу, щоб перемогти суперника
+				ballDirY -= paddle2DirY * 0.7;
+			}
+		}
+	}
+}
+
+function resetBall(loser)
+{
+	//позиція мяча в центрі столу
+	ball.position.x = 0;
+	ball.position.y = 0;
+	
+	// якшо ігрок програв, даємо мяч супернику
+	if (loser == 1)
+	{
+		ballDirX = -1;
+	}
+	// якшо суперник програв, даємо мяч ігроку
+	else
+	{
+		ballDirX = 1;
+	}
+	
+	
+	ballDirY = 1;
+}
+
+var bounceTime = 0;
+
+function matchScoreCheck()
+{
+	
+	if (score1 >= maxScore)
+	{
+		
+		ballSpeed = 0;
+		
+		document.getElementById("scores").innerHTML = "Вітаємо! Ви виграли!!";		
+		document.getElementById("winnerBoard").innerHTML = "Натисність F5 щоб зіграти ще раз";
+	
+		bounceTime++;
+		paddle1.position.z = Math.sin(bounceTime * 0.1) * 10;
+		
+		paddle1.scale.z = 2 + Math.abs(Math.sin(bounceTime * 0.1)) * 10;
+		paddle1.scale.y = 2 + Math.abs(Math.sin(bounceTime * 0.05)) * 10;
+	}
+	
+	else if (score2 >= maxScore)
+	{
+		
+		ballSpeed = 0;
+		
+		document.getElementById("scores").innerHTML = "Комп'ютер виграв!";
+		document.getElementById("winnerBoard").innerHTML = "Натисність F5 щоб зіграти ще раз";
+		
+		bounceTime++;
+		paddle2.position.z = Math.sin(bounceTime * 0.1) * 10;
+		
+		paddle2.scale.z = 2 + Math.abs(Math.sin(bounceTime * 0.1)) * 10;
+		paddle2.scale.y = 2 + Math.abs(Math.sin(bounceTime * 0.05)) * 10;
+	}
+}

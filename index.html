@@ -1,0 +1,47 @@
+﻿<!doctype html>
+<html>
+  <head>
+        <title>Арканоид</title>
+		<style>
+            body {
+                background-color: white;
+            }
+            #gameCanvas {
+                background-color: white;
+                width: 900px;
+                height: 400px;
+                margin: auto;
+            }
+            #scoreboard {
+margin:0;
+                text-align: center;
+                font-family: Segoe UI, Helvetica, Ubuntu, sans-serif;
+                color: black;
+            }
+            #scores {
+                font-size:600%; 
+                padding:0; 
+                margin:0;
+                color: black;
+            }
+            #title {
+                background-color: black;
+                color: white;
+            }
+        </style>
+    </head>
+    <body onload='setup();'>
+        <div id='gameCanvas'></div>
+        <script src='js/three.min.js'></script>
+        <script src='js/keyboard.js'></script>
+        <script src='js/game.js'></script>
+        <div id='scoreboard'>
+            <h1 id='scores'>0-0</h1>
+            <h1 id='title'>BY SERGEY TOVT</h1>
+            <h2 id='winnerBoard'>Виграє той, хто першим набере 7 очків!</h2>
+            <h3>A - рухатись вліво
+            <br>D - рухатись вправо
+			<br>F5 - перезапустити гру</h3>
+        </div>
+    </body>
+</html>
